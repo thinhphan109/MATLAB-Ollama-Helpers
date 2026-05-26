@@ -57,10 +57,17 @@ Keyboard in dock panel:
 - `Enter` = newline
 - `Esc` = hide
 
+Dock behavior:
+- `Single` mode sends a one-shot request.
+- `Chat` mode uses the same persistent context model as `llmc`.
+- Requests run in a background MATLAB worker, so the main MATLAB session should remain usable while waiting.
+- Output stays editable so you can trim and copy only the lines you want.
+- `Reset Chat` clears the saved chat context used by `Chat` mode and `llmc`.
+
 ## Notes
 
 - `llm` and `llmp` are stateless.
 - `llmc` keeps local context until `llmreset`.
+- `llmhide` hides the dock and clears active dock polling state.
 - `llmclean` runs `clc`, resets context, and hides the dock panel.
-- Output areas in the MATLAB panels are editable so you can trim and copy only the text you need.
 - All requests go directly to local Ollama.
