@@ -5,7 +5,7 @@ Local MATLAB helpers for sending prompts to Ollama and receiving responses witho
 ## Quick start
 
 ```matlab
-addpath('C:\Users\Thinh Phan\.gemini\antigravity\scratch\matlab_ollama_panel')
+addpath('...\matlab_ollama_panel')
 llmsetup
 ```
 
