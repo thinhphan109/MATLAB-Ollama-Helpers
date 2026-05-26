@@ -1,22 +1,18 @@
 function matlab_ollama_dock()
-%MATLAB_OLLAMA_DOCK Standalone local Ollama helper window for MATLAB.
+%MATLAB_OLLAMA_DOCK Prototype dock-style local Ollama helper.
 %   Keyboard:
 %   - Ctrl+Enter: send
 %   - Enter in prompt: newline
 %   - Escape: hide
 
 fig = figure( ...
-    'Name', 'LLM Helper', ...
+    'Name', 'Utility', ...
     'NumberTitle', 'off', ...
     'MenuBar', 'none', ...
     'ToolBar', 'none', ...
-    'DockControls', 'off', ...
-    'WindowStyle', 'normal', ...
-    'HandleVisibility', 'callback', ...
-    'IntegerHandle', 'off', ...
+    'DockControls', 'on', ...
+    'WindowStyle', 'docked', ...
     'Color', [0.97 0.97 0.98], ...
-    'Position', [120 120 430 520], ...
-    'Resize', 'on', ...
     'WindowKeyPressFcn', @handleFigureKeyPress, ...
     'DeleteFcn', @handleFigureDelete);
 
@@ -81,7 +77,7 @@ hideButton = uicontrol( ...
     'Units', 'normalized', ...
     'Position', [0.67 0.58 0.30 0.08], ...
     'String', 'Hide', ...
-    'Callback', @hideDock);
+    'Callback', @(~, ~) set(fig, 'Visible', 'off'));
 
 outputEdit = uicontrol( ...
     'Parent', panel, ...
@@ -112,14 +108,10 @@ setappdata(0, 'llm_dock_figure', fig);
 setappdata(0, 'llm_dock_state', state);
 
     function handleFigureKeyPress(~, event)
-        if ~isDockAlive()
-            return;
-        end
-
         modifiers = string(event.Modifier);
 
         if strcmp(event.Key, 'escape')
-            hideDock();
+            set(fig, 'Visible', 'off');
             return;
         end
 
@@ -129,10 +121,6 @@ setappdata(0, 'llm_dock_state', state);
     end
 
     function sendPrompt(~, ~)
-        if ~isDockAlive()
-            return;
-        end
-
         dockState = getDockState();
         if dockState.Busy
             setStatus('A request is already running...');
@@ -162,7 +150,7 @@ setappdata(0, 'llm_dock_state', state);
                 'SessionMessages', sessionMessages);
         catch err
             setStatus('Failed to launch worker');
-            safeSetString(outputEdit, err.message);
+            set(outputEdit, 'String', err.message);
             return;
         end
 
@@ -170,7 +158,8 @@ setappdata(0, 'llm_dock_state', state);
             'ExecutionMode', 'fixedSpacing', ...
             'Period', 0.4, ...
             'BusyMode', 'drop', ...
-            'TimerFcn', @pollRequest);
+            'TimerFcn', @pollRequest, ...
+            'StopFcn', @cleanupTimer);
 
         dockState.Job = job;
         dockState.Timer = pollTimer;
@@ -178,20 +167,14 @@ setappdata(0, 'llm_dock_state', state);
         setDockState(dockState);
 
         setBusy(true);
-        safeSetString(outputEdit, '');
+        set(outputEdit, 'String', '');
         setStatus(sprintf('Running %s...', char(requestMode)));
         start(pollTimer);
     end
 
     function pollRequest(~, ~)
-        if ~isDockAlive()
-            stopTimerFromState();
-            return;
-        end
-
         dockState = getDockState();
         if ~dockState.Busy || isempty(dockState.Job)
-            stopTimerFromState();
             return;
         end
 
@@ -201,16 +184,14 @@ setappdata(0, 'llm_dock_state', state);
         end
 
         if status.State == "done"
-            safeSetString(outputEdit, cellstr(splitlines(status.ResponseText)));
+            set(outputEdit, 'String', cellstr(splitlines(status.ResponseText)));
             if ~isempty(status.SessionMessages)
                 llm_state_set(status.SessionMessages);
             end
-            if isgraphics(promptEdit)
-                set(promptEdit, 'String', '');
-            end
+            set(promptEdit, 'String', '');
             setStatus('Done');
         else
-            safeSetString(outputEdit, cellstr(splitlines(status.ErrorText)));
+            set(outputEdit, 'String', cellstr(splitlines(status.ErrorText)));
             setStatus('Error');
         end
 
@@ -222,16 +203,10 @@ setappdata(0, 'llm_dock_state', state);
         dockState.Timer = [];
         setDockState(dockState);
         setBusy(false);
-        if isgraphics(promptEdit)
-            uicontrol(promptEdit);
-        end
+        uicontrol(promptEdit);
     end
 
     function resetChatState(~, ~)
-        if ~isDockAlive()
-            return;
-        end
-
         if getDockState().Busy
             setStatus('Wait for the current request to finish.');
             return;
@@ -241,7 +216,13 @@ setappdata(0, 'llm_dock_state', state);
         setStatus('Chat state reset');
     end
 
-    function hideDock(~, ~)
+    function cleanupTimer(timerObj, ~)
+        if isempty(timerObj) || ~isvalid(timerObj)
+            return;
+        end
+    end
+
+    function handleFigureDelete(~, ~)
         dockState = getDockState();
         if ~isempty(dockState.Timer)
             stopAndDeleteTimer(dockState.Timer);
@@ -249,17 +230,6 @@ setappdata(0, 'llm_dock_state', state);
         if ~isempty(dockState.Job)
             llm_async_cleanup(dockState.Job);
         end
-        dockState.Timer = [];
-        dockState.Job = [];
-        dockState.Busy = false;
-        setDockState(dockState);
-        if isgraphics(fig)
-            set(fig, 'Visible', 'off');
-        end
-    end
-
-    function handleFigureDelete(~, ~)
-        hideDock();
         if isappdata(0, 'llm_dock_state')
             rmappdata(0, 'llm_dock_state');
         end
@@ -268,17 +238,7 @@ setappdata(0, 'llm_dock_state', state);
         end
     end
 
-    function tf = isDockAlive()
-        tf = isgraphics(fig) && isgraphics(promptEdit) && isgraphics(outputEdit) ...
-            && isgraphics(statusText) && isgraphics(sendButton) && isgraphics(resetButton) ...
-            && isgraphics(modePopup);
-    end
-
     function setBusy(isBusy)
-        if ~isDockAlive()
-            return;
-        end
-
         if isBusy
             set(sendButton, 'Enable', 'off');
             set(resetButton, 'Enable', 'off');
@@ -291,27 +251,8 @@ setappdata(0, 'llm_dock_state', state);
     end
 
     function setStatus(message)
-        if isgraphics(statusText)
-            set(statusText, 'String', char(message));
-            drawnow limitrate;
-        end
-    end
-
-    function safeSetString(handleObj, value)
-        if isgraphics(handleObj)
-            set(handleObj, 'String', value);
-        end
-    end
-
-    function stopTimerFromState()
-        dockState = getDockState();
-        if isfield(dockState, 'Timer') && ~isempty(dockState.Timer)
-            stopAndDeleteTimer(dockState.Timer);
-            dockState.Timer = [];
-            dockState.Busy = false;
-            dockState.Job = [];
-            setDockState(dockState);
-        end
+        set(statusText, 'String', char(message));
+        drawnow limitrate;
     end
 
     function dockState = getDockState()

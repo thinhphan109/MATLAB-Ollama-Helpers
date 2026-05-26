@@ -1,5 +1,5 @@
 function llmhide()
-%LLMHIDE Hide the MATLAB Ollama helper window.
+%LLMHIDE Hide the dock-style local Ollama utility panel.
 
 if isappdata(0, 'llm_dock_state')
     dockState = getappdata(0, 'llm_dock_state');
@@ -9,15 +9,12 @@ if isappdata(0, 'llm_dock_state')
     if isfield(dockState, 'Job') && ~isempty(dockState.Job)
         llm_async_cleanup(dockState.Job);
     end
-    try
-        rmappdata(0, 'llm_dock_state');
-    catch
-    end
+    rmappdata(0, 'llm_dock_state');
 end
 
 if isappdata(0, 'llm_dock_figure')
     fig = getappdata(0, 'llm_dock_figure');
-    if isgraphics(fig)
+    if isvalid(fig)
         set(fig, 'Visible', 'off');
     end
 end

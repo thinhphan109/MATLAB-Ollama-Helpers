@@ -5,7 +5,7 @@ Local MATLAB helpers for sending prompts to Ollama and receiving responses witho
 ## Quick start
 
 ```matlab
-addpath('C:\Users\Thinh Phan\.gemini\antigravity\scratch\matlab_ollama_panel')
+addpath('...\matlab_ollama_panel')
 llmsetup
 ```
 
@@ -46,20 +46,18 @@ llm session
 llmreset
 ```
 
-### Helper window
+### Docked helper panel
 
 ```matlab
 llmdock
 ```
 
-Keyboard in helper window:
+Keyboard in dock panel:
 - `Ctrl+Enter` = send
 - `Enter` = newline
 - `Esc` = hide
 
-Helper window behavior:
-- It is still a MATLAB window, not a separate app.
-- It stays separate from normal plotting figures instead of sharing the docked `Figures` area.
+Dock behavior:
 - `Single` mode sends a one-shot request.
 - `Chat` mode uses the same persistent context model as `llmc`.
 - Requests run in a background MATLAB worker, so the main MATLAB session should remain usable while waiting.
@@ -70,6 +68,6 @@ Helper window behavior:
 
 - `llm` and `llmp` are stateless.
 - `llmc` keeps local context until `llmreset`.
-- `llmhide` hides the helper window and clears active polling state.
-- `llmclean` runs `clc`, resets context, and hides the helper window.
+- `llmhide` hides the dock and clears active dock polling state.
+- `llmclean` runs `clc`, resets context, and hides the dock panel.
 - All requests go directly to local Ollama.
